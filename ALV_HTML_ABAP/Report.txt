@@ -1,0 +1,202 @@
+*&---------------------------------------------------------------------*
+*& Report Z_J_TABLAS01
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT z_j_tablas01.
+
+* INICIO VARIABLES
+TYPES:
+  BEGIN OF persona,
+    nombre(20),
+    dni        TYPE string,
+    edad       TYPE i,
+  END OF persona.
+
+DATA:
+  gt_tablaPersonas  TYPE TABLE OF persona, " GLOBAL TABLE
+  ga_persona        LIKE LINE OF gt_tablaPersonas, " GLOBAL AREA
+  gv_bool           TYPE abap_bool, " GLOBAL VARIABLE
+  hoy               TYPE endda_original,
+  edad              TYPE num2,
+  prueba            TYPE REF TO if_hrpa_message_handler,
+  value             TYPE spop-varvalue1,
+  valueNacimiento   TYPE string,
+  titulo            TYPE string,
+  indice            TYPE string,
+  cadena_conversora TYPE string,
+  fecha_conversora  TYPE datum,
+  gt_tablaFecha     TYPE STANDARD TABLE OF string.
+
+
+DATA:
+      body TYPE string.
+
+hoy = sy-datum.
+
+PARAMETERS:
+  numPers TYPE i.
+
+
+DO numPers TIMES.
+  PERFORM popGetPersonas.
+ENDDO.
+
+
+
+
+
+* FIN VARIABLES
+
+*INICIO PROGRAMA
+
+body = '<head>'
+    && '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">'
+    && '<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/js/bootstrap.bundle.min.js" integrity="sha384-qKXV1j0HvMUeCBQ+QVp7JcfGl760yU08IQ+GpUo5hlbpg51QRiuqHAJz8+BrxE/N" crossorigin="anonymous"></script>'
+    && '<style> '
+    && '@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@500&display=swap");'
+    && '* {font-family: "Poppins", sans-serif;}'
+    && 'table,tr,td,th {border:1px solid black;transition:0.4s;padding:10px;text-align:center}'
+    && 'td {border:none}'
+    && 'tr:nth-child(1) { background:rgb(176,229,233); color: #000; font-weight:bolder }'
+    && 'tr:hover {background-color:#000;color:#fff}'
+    && 'button {border-radius:5px;border:none;padding:10px;margin:10px;font-weight:900}'
+    && '#btn-aceptar { background-color:#F44336; color:#fff }'
+    && 'nav {border-bottom:1px solid #dee2e6;;width:100%;text-align:center;}'
+    && '.menu {display:flex;align-items:center;justify-content:space-between;}'
+    && '#contenedor {}'
+    && '</style>'
+    && '<body>'
+    && '<nav class="navbar"><div class="menu"><span class="h1">Usuarios disponibles</span></div><form action="http://localhost/TFG/index.php" method="get"><input type="text" name="dni" placeholder="DNI">'
+    && '<button id="btn-aceptar"type="submit">Filtrar</button></form></nav>'
+    && '<div id="contenedor" class="parent container d-flex justify-content-center align-items-center h-100">'
+    && '<table class="table">'
+    && '<tr><th>DNI</th><th>Nombre</th><th>Edad</th>'.
+LOOP AT gt_tablaPersonas INTO ga_persona.
+  body = body && '<tr><td>' && ga_persona-dni && '</td><td>' && ga_persona-nombre && '</td><td>' && ga_persona-edad  && '</td></tr>'.
+ENDLOOP.
+
+body = body && '</table></div></body>' .
+
+cl_demo_output=>new(
+  )->write_html( body
+  )->display( ).
+
+
+* FIN PROGRAMA
+
+* INICIO DE PROCEDIMIENTOS
+
+FORM popGetPersonas.
+  TRY.
+      indice = sy-index.
+      CONCATENATE 'Datos usuario | Persona nº' indice INTO titulo.
+      DATA: lt_fields        TYPE TABLE OF sval,
+            lw_fields        TYPE sval,
+            lc_return        TYPE c,
+            lv_fechaTemporal TYPE datum.
+
+      CLEAR lw_fields.
+      lw_fields-tabname = 'ZJUSUARIOS'.
+      lw_fields-fieldname = 'NOMBRE'.
+*lw_fields-comp_tab = ‘ZJUSUARIOS’.
+*lw_fields-comp_field = ‘NOMBRE’.
+      lw_fields-field_attr = '01'. " Atributo para visualización del campo en el dynpro
+      " ( ) grado de visibilidad normal, listo para entrada
+      " 01 visible, listo para entrada
+      " 02 grado de visibilidad normal, no listo para entrada
+      " 03 visible, no listo para entrada
+      " 04 No visualizar
+      lw_fields-value = ''. " Valor por defecto
+      lw_fields-field_obl = 'X'. " Obligatorio indicar un valor
+      lw_fields-fieldtext = 'Nombre'. " Texto descriptivo izquierdo
+      APPEND lw_fields TO lt_fields.
+
+      CLEAR lw_fields.
+      lw_fields-tabname = 'ZJUSUARIOS'.
+      lw_fields-fieldname = 'DNI'.
+*lw_fields-comp_tab = 'ZJUSUARIOS'.
+*lw_fields-comp_field = 'DNI'.
+      lw_fields-field_attr = '01'.
+      lw_fields-value = ''.
+      lw_fields-field_obl = 'X'.
+      lw_fields-fieldtext = 'DNI'.
+      APPEND lw_fields TO lt_fields.
+
+      CLEAR lw_fields.
+      lw_fields-tabname = 'ZJUSUARIOS'.
+      lw_fields-fieldname = 'FECHA_NACIMIENTO'.
+*lw_fields-comp_tab = 'ZJUSUARIOS'.
+*lw_fields-comp_field = 'FECHA_NACIMIENTO'.
+      lw_fields-field_attr = '01'.
+      lw_fields-value = ''.
+      lw_fields-field_obl = 'X'.
+      lw_fields-fieldtext = 'Fecha de nacimiento'.
+      APPEND lw_fields TO lt_fields.
+
+
+      CALL FUNCTION 'POPUP_GET_VALUES'
+        EXPORTING
+*         no_value_check  = ‘ ‘ " Desactiva verificaciones del correspondiente tipo de datos
+          popup_title     = titulo
+          start_column    = '5'
+          start_row       = '5'
+        IMPORTING
+          returncode      = lc_return
+        TABLES
+          fields          = lt_fields
+        EXCEPTIONS
+          error_in_fields = 1
+          OTHERS          = 2.
+
+      LOOP AT lt_fields INTO lw_fields.
+        IF sy-tabix EQ 1.
+          ga_persona-nombre = lw_fields-value.
+        ELSEIF sy-tabix EQ 2.
+          ga_persona-dni = lw_fields-value.
+        ELSEIF sy-tabix EQ 3.
+          valueNacimiento = lw_fields-value.
+        ENDIF.
+
+      ENDLOOP.
+
+      PERFORM comprobarCadena USING ga_persona-nombre CHANGING gv_bool.
+
+      IF gv_bool EQ abap_true.
+        TRY.
+            PERFORM obtenerEdad USING valueNacimiento CHANGING edad.
+            IF sy-subrc <> 0.
+              ga_persona-edad = 200.
+            ELSE.
+
+              ga_persona-edad = edad.
+            ENDIF.
+          CATCH cx_root.
+            CALL FUNCTION 'POPUP_DISPLAY_MESSAGE'
+              EXPORTING
+                titel = 'Error fechas'
+                msgid = '00'
+                msgty = 'E'
+                msgno = '001'
+                msgv1 = 'Las fechas introducidas no son válidas'.
+        ENDTRY.
+
+        APPEND ga_persona TO gt_tablaPersonas.
+
+      ELSE.
+        CALL FUNCTION 'POPUP_DISPLAY_MESSAGE'
+          EXPORTING
+            titel = 'Error nombre de usuario'
+            msgid = '00'
+            msgty = 'E'
+            msgno = '001'
+            msgv1 = 'El nombre no puede contener números'.
+
+      ENDIF.
+
+    CATCH cx_root.
+      WRITE / 'ERROR | POP GET PERSONAS'.
+  ENDTRY.
+ENDFORM.
+
+INCLUDE z_j_include_tablas01.

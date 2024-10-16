@@ -1,0 +1,71 @@
+*&---------------------------------------------------------------------*
+*& Include Z_J_INCLUDE_TABLAS01
+*&---------------------------------------------------------------------*
+
+
+FORM comprobarCadena USING value CHANGING bool.
+  cadena_conversora = value.
+  CALL FUNCTION 'Z_J_FUNCION_NOTEXT'
+    EXPORTING
+      cadena = cadena_conversora
+    IMPORTING
+      bool   = bool.
+ENDFORM.
+
+FORM obtenerEdad USING valueNacimiento CHANGING edad.
+  DATA:
+    lv_anio(4),
+    lv_mes(2),
+    lv_dia(2),
+    lv_test(10),
+    lv_caracterSeparador TYPE char1.
+
+
+  lv_caracterSeparador = valueNacimiento+2(1).
+
+*  SPLIT valueNacimiento AT lv_caracterSeparador INTO TABLE gt_tablaFecha.
+*  if sy-subrc EQ 0.
+*    WRITE 'ACEPTADO'.
+*    ENDIF.
+*  lv_anio = gt_tablaFecha[ 3 ].
+*  lv_mes = gt_tablaFecha[ 2 ].
+*  lv_dia = gt_tablaFecha[ 1 ].
+*
+*  CONCATENATE lv_anio lv_mes lv_dia INTO lv_test.
+
+  fecha_conversora = valueNacimiento.
+
+  CALL FUNCTION 'HR_ECM_GET_PERIOD_BETW_DATES'
+    EXPORTING
+      begda           = fecha_conversora
+      endda           = hoy
+      message_handler = prueba
+    IMPORTING
+      num_years       = edad.
+
+
+ENDFORM.
+
+FORM popGetNacimiento CHANGING valueNacimiento.
+  CALL FUNCTION 'POPUP_TO_GET_ONE_VALUE'
+    EXPORTING
+      textline1   = 'Fecha nacimiento | DD.MM.YYYY'
+*     TEXTLINE2   = ' ey '
+*     TEXTLINE3   = ' ey2 '
+      titel       = titulo
+      valuelength = 10
+    IMPORTING
+*     ANSWER      = value
+      value1      = valueNacimiento
+*   EXCEPTIONS
+*     TITEL_TOO_LONG       = 1
+*     OTHERS      = 2
+    .
+
+  TRY.
+      PERFORM obtenerEdad USING valueNacimiento CHANGING edad.
+    CATCH cx_root.
+      WRITE / 'Las fechas introducidas no son válidas'.
+  ENDTRY.
+
+ENDFORM.
